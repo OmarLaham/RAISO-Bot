@@ -12,3 +12,4 @@ pydicom>=3.0.1
 torch==2.7.0
 torchvision==0.22.0
 timm==1.0.15 # PyTorch Image Models # https://pypi.org/project/timm/
+transformers==4.51.3
