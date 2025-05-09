@@ -4,6 +4,22 @@ import pydicom
 import tempfile
 import os
 from xray_classifier import classify_xray
+from grad_cam import run_gradcam_on_xray
+
+def show_classification_result():
+    st.success("✅ Classification Complete")
+    # Print results
+    dct_classification_result = st.session_state['dct_classification_result'] # get values from session_state
+    for label, prob in dct_classification_result.items():
+                        col_class, col_confidence, col_operations = st.columns(3)
+                        with col_class:
+                            st.write(f"Class: {label}")
+                        with col_confidence:
+                            st.write(f"Confidence: {prob:.2f}")
+                        with col_operations:
+                            if st.button("💡 Visual Explanation", key=f"btn_explain_opinion_{label}"):
+                                st.session_state['action'] = "explain_opinion"
+                                st.session_state['explain_opinion_label'] = label
 
 # Set page config
 st.set_page_config(page_title="Radiology AI Assistant", layout="centered")
@@ -38,34 +54,49 @@ if uploaded_file:
             st.error(f"❌ Failed to process DICOM file: {e}")
             os.remove(tmp_path)
 
-        # Button to classify
-        if st.button("Run AI Classification"):
-            # Placeholder for backend response
-            with st.spinner("Processing with AI model..."):
-                # Simulated classification result
-                classification_result = classify_xray(dicom_data.pixel_array)
-                st.success("✅ Classification Complete")
-                # Print results
-                for label, prob in classification_result.items():
-                    st.write(f"{label} \t\t - Confidence: {prob:.2f}")
-                #st.write("**AI Diagnosis:**", classification_result)
+        if 'xray_classified' not in st.session_state:
+            # Button to classify
+            if st.button("Run AI Classification"):
+                # Placeholder for backend response
+                with st.spinner("Processing with AI model..."):
+                    # Simulated classification result
+                    dct_classification_result = classify_xray(dicom_data.pixel_array)
+                    st.session_state['dct_classification_result'] = dct_classification_result
+                    show_classification_result()
 
-            # Post-classification options
-            st.markdown("---")
-            st.subheader("Next Steps")
+                    # Set session state to to drive logic
+                    st.session_state['xray_classified'] = True
 
-            col1, col2 = st.columns(2)
+                # Post-classification options
+                st.markdown("---")
+                st.subheader("Next Steps")
 
-            with col1:
-                if st.button("📝 Generate Report"):
-                    st.session_state['action'] = "generate_report"
+                col1, col2 = st.columns(2)
 
-            with col2:
-                if st.button("🔍 Show Top 3 Similar X-rays"):
-                    st.session_state['action'] = "show_similar"
+                with col1:
+                    if st.button("📝 Generate Report"):
+                        st.session_state['action'] = "generate_report"
 
-            # Display based on session state
+                with col2:
+                    if st.button("🔍 Show Top 3 Similar X-rays"):
+                        st.session_state['action'] = "show_similar"
+
+
+        else:
+            # Show classification results
+            show_classification_result()
+
+            # Drive logic based on session state
             if 'action' in st.session_state:
+                print("action in state")
+                if st.session_state['action'] == "explain_opinion":
+                    print("explain opinion in state")
+                    with st.spinner("Generating explanation using Grad-CAM..."):
+                        # Generate Grad-CAM image
+                        heatmap = run_gradcam_on_xray(dicom_data.pixel_array, label=st.session_state['explain_opinion_label'])
+                        st.success("✅ Explanation generated")
+                        st.image(heatmap, caption=f"Grad-CAM Heatmap - {st.session_state['explain_opinion_label']}", use_column_width=True)
+
                 if st.session_state['action'] == "generate_report":
                     with st.spinner("Generating report using ML..."):
                         # Placeholder
@@ -78,4 +109,4 @@ if uploaded_file:
                         st.success("✅ Similar X-rays Found")
                         for i in range(1, 4):
                             st.image(f"https://via.placeholder.com/300x300.png?text=Similar+X-ray+{i}",
-                                     caption=f"Top {i} Similar X-ray")
+                                        caption=f"Top {i} Similar X-ray")
