@@ -1,4 +1,6 @@
 import streamlit as st
+from streamlit_modal import Modal
+
 from PIL import Image
 import pydicom
 import tempfile
@@ -13,19 +15,29 @@ def show_classification_result():
     for label, prob in dct_classification_result.items():
                         col_class, col_confidence, col_operations = st.columns(3)
                         with col_class:
-                            st.write(f"Class: {label}")
+                            st.write(f"**{label}**")
                         with col_confidence:
                             st.write(f"Confidence: {prob:.2f}")
                         with col_operations:
-                            if st.button("💡 Visual Explanation", key=f"btn_explain_opinion_{label}"):
+                            if st.button("💡 Visual Explanaition", key=f"btn_explain_opinion_{label}"):
                                 st.session_state['action'] = "explain_opinion"
                                 st.session_state['explain_opinion_label'] = label
+                                modal.open()
+
+                            if st.button("🔍 Show Similar X-Rays", key=f"btn_show_similar_xrays_{label}"):
+                                st.session_state['action'] = "show_similar_xrays"
+                                modal.open()
+
+                        st.divider()
 
 # Set page config
 st.set_page_config(page_title="Radiology AI Assistant", layout="centered")
 
 # Title
 st.title("🧠 Radiology AI Assistant")
+
+# Popup to use for extra content
+modal = Modal("RAISO - Radiology AI Assistant", key="modal")
 
 # File uploader
 uploaded_file = st.file_uploader("Upload a DICOM file (Max 5MB)", type=["dcm"])
@@ -67,19 +79,19 @@ if uploaded_file:
                     # Set session state to to drive logic
                     st.session_state['xray_classified'] = True
 
-                # Post-classification options
-                st.markdown("---")
-                st.subheader("Next Steps")
+                # # Post-classification options
+                # st.markdown("---")
+                # st.subheader("Next Steps")
 
-                col1, col2 = st.columns(2)
+                # col1, col2 = st.columns(2)
 
-                with col1:
-                    if st.button("📝 Generate Report"):
-                        st.session_state['action'] = "generate_report"
+                # with col1:
+                #     if st.button("📝 Generate Report"):
+                #         st.session_state['action'] = "generate_report"
 
-                with col2:
-                    if st.button("🔍 Show Top 3 Similar X-rays"):
-                        st.session_state['action'] = "show_similar"
+                # with col2:
+                #     if st.button("🔍 Show Top 3 Similar X-rays"):
+                #         st.session_state['action'] = "show_similar"
 
 
         else:
@@ -88,25 +100,40 @@ if uploaded_file:
 
             # Drive logic based on session state
             if 'action' in st.session_state:
-                print("action in state")
+
+                # Visual explanation logic
                 if st.session_state['action'] == "explain_opinion":
-                    print("explain opinion in state")
-                    with st.spinner("Generating explanation using Grad-CAM..."):
-                        # Generate Grad-CAM image
-                        heatmap = run_gradcam_on_xray(dicom_data.pixel_array, label=st.session_state['explain_opinion_label'])
-                        st.success("✅ Explanation generated")
-                        st.image(heatmap, caption=f"Grad-CAM Heatmap - {st.session_state['explain_opinion_label']}", use_column_width=True)
+                        if modal.is_open():
+                            with modal.container():
+                                with st.spinner("Generating explanation using Grad-CAM..."):
+                                    # Generate Grad-CAM image
+                                    heatmap = run_gradcam_on_xray(dicom_data.pixel_array, label=st.session_state['explain_opinion_label'])
+                                    st.success("✅ Explanation generated")
+                                    st.image(heatmap, caption=f"Grad-CAM Heatmap - {st.session_state['explain_opinion_label']}", use_column_width=True)
 
-                if st.session_state['action'] == "generate_report":
-                    with st.spinner("Generating report using ML..."):
-                        # Placeholder
-                        st.success("✅ Report generated")
-                        st.text_area("Radiology Report", "Findings indicate signs of pneumonia...", height=200)
+                # if st.session_state['action'] == "generate_report":
+                #     with st.spinner("Generating report using ML..."):
+                #         # Placeholder
+                #         st.success("✅ Report generated")
+                #         st.text_area("Radiology Report", "Findings indicate signs of pneumonia...", height=200)
 
-                elif st.session_state['action'] == "show_similar":
-                    with st.spinner("Fetching similar X-rays from Azure..."):
-                        # Placeholder images or results
-                        st.success("✅ Similar X-rays Found")
-                        for i in range(1, 4):
-                            st.image(f"https://via.placeholder.com/300x300.png?text=Similar+X-ray+{i}",
-                                        caption=f"Top {i} Similar X-ray")
+                # elif st.session_state['action'] == "show_similar":
+                #     with st.spinner("Fetching similar X-rays from Azure..."):
+                #         # Placeholder images or results
+                #         st.success("✅ Similar X-rays Found")
+                #         for i in range(1, 4):
+                #             st.image(f"https://via.placeholder.com/300x300.png?text=Similar+X-ray+{i}",
+                #                         caption=f"Top {i} Similar X-ray")
+                            
+
+            # Find similiar X-rays logic
+            if st.session_state['action'] == "show_similar_xrays":
+                if modal.is_open():
+                    with modal.container():
+                        with st.spinner("Fetching similar X-rays from NIH Chest X-Ray Dataset..."):
+                            # Placeholder images or results
+                            st.success("✅ Similar X-rays Found")
+                            for i in range(1, 4):
+                                st.image(f"https://via.placeholder.com/300x300.png?text=Similar+X-ray+{i}",
+                                         caption=f"Top {i} Similar X-ray")
+                                st.divider()
