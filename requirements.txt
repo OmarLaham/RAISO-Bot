@@ -4,7 +4,7 @@ streamlit-modal==0.1.2
 pandas>=2.2.2
 numpy>=1.26.4
 requests>=2.31.0
-pillow>=11.2.1
+pillow>=10.4.0 # streamlit 1.29.0 depends on pillow<11 and >=7.1.0
 pydicom>=3.0.1
 torch==2.7.0
 torchvision==0.22.0
