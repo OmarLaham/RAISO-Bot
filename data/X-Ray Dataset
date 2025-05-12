@@ -1,4 +1,0 @@
-NIH Chest X-rays
-URL: https://www.kaggle.com/datasets/nih-chest-xrays/data
-
-I kept random ~75 png (avg size: 600KB) from each class and convert all to DICOM.

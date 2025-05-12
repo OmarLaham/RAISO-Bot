@@ -1,4 +1,6 @@
 import streamlit as st
+import os
+from os import path
 from streamlit_modal import Modal
 
 from PIL import Image
@@ -11,129 +13,196 @@ from grad_cam import run_gradcam_on_xray
 def show_classification_result():
     st.success("✅ Classification Complete")
     # Print results
+    n_diagnosis = 0
     dct_classification_result = st.session_state['dct_classification_result'] # get values from session_state
+    classification_threshold = 0.55
     for label, prob in dct_classification_result.items():
-                        col_class, col_confidence, col_operations = st.columns(3)
-                        with col_class:
-                            st.write(f"**{label}**")
-                        with col_confidence:
-                            st.write(f"Confidence: {prob:.2f}")
-                        with col_operations:
-                            if st.button("💡 Visual Explanaition", key=f"btn_explain_opinion_{label}"):
-                                st.session_state['action'] = "explain_opinion"
-                                st.session_state['explain_opinion_label'] = label
-                                modal.open()
+        if prob < classification_threshold: # Only show those with confidence >= classification_threshold
+                continue
+        
+        else:
+            n_diagnosis += 1
+            col_class, col_confidence, col_operations = st.columns(3)
+            with col_class:
+                st.write(f"**{label}**")
+            with col_confidence:
+                st.write(f"Confidence: {prob:.2f}")
+            with col_operations:
+                if st.button("💡 Visual Explanaition", key=f"btn_explain_opinion_{label}"):
+                    st.session_state['action'] = "explain_opinion"
+                    st.session_state['explain_opinion_label'] = label
+                    modal.open()
 
-                            if st.button("🔍 Show Similar X-Rays", key=f"btn_show_similar_xrays_{label}"):
-                                st.session_state['action'] = "show_similar_xrays"
-                                modal.open()
+                if st.button("🔍 Show Similar X-Rays", key=f"btn_show_similar_xrays_{label}"):
+                    st.session_state['action'] = "show_similar_xrays"
+                    modal.open()
 
-                        st.divider()
+            st.divider()
+
+    if n_diagnosis > 0:
+        st.write(f"**{n_diagnosis} labels / possible diagnosis** captured by the AI model.")
+    else:
+        st.write("**No Findings** captured in this X-ray by the AI model.")
+
+def show_example_dicoms():
+    imgs = {
+        "Cardiomegaly": path.join("example_dicoms","cardiomegaly_00004606_000.dcm"),
+        "Hernia": path.join("example_dicoms","hernia_00007712_002.dcm"),
+        "Nodule": path.join("example_dicoms","nodules_00004995_000.dcm"),
+        "Infiltration": path.join("example_dicoms","infiltration_00018734_000.dcm")
+    }
+
+    with st.expander("**Example Chest X-Ray DICOMs**"):
+        for label, img_path in imgs.items():
+            col_img, col_operations = st.columns(2)
+
+            with col_img:
+                dicom_data = pydicom.dcmread(img_path)
+                img = Image.fromarray(dicom_data.pixel_array)
+                if img.mode != 'RGB':
+                    img = img.convert('RGB')
+                st.image(img, caption=label)
+                
+
+            with col_operations:
+                 btn_key = img_path.split("_")[-2]
+                 if st.button("👉 Try this X-ray", key=f"btn_try_example_dicom_{btn_key}"):
+                      st.session_state.example_dicom_path = img_path
+                      st.experimental_rerun()
+
+            st.divider()
+                      
+        
 
 # Set page config
 st.set_page_config(page_title="Radiology AI Assistant", layout="centered")
 
 # Title
-st.title("🧠 Radiology AI Assistant")
+st.title("🩻 RAISO - Radiology AI Second Opinion App")
+
+# Cite model and dataset
+nih_dataset_link = "<a target='_blank' style='font-size: bold;' href='https://www.kaggle.com/datasets/nih-chest-xrays/data'>NIH Chest X-rays Dataset</a>"
+citation_html = f"<div style='padding: 5px; margin-bottom: 10px; background-color: #e0ffff'>This app is using a pre-trained <b>EfficientNetB0</b> model for X-Ray image classification. All X-Rays used as example imaging data and for similarity search are de-identified X-rays from the {nih_dataset_link}).</div>"
+
+st.markdown(citation_html, unsafe_allow_html=True)
 
 # Popup to use for extra content
 modal = Modal("RAISO - Radiology AI Assistant", key="modal")
 
+if 'example_dicom_path' not in st.session_state:
+    st.session_state.example_dicom_path = False
+
 # File uploader
-uploaded_file = st.file_uploader("Upload a DICOM file (Max 5MB)", type=["dcm"])
 
-if uploaded_file:
-    if uploaded_file.size > 5 * 1024 * 1024:
-        st.error("⚠️ File too large! Please upload a file smaller than 5MB.")
-    else:
-        # Save to temporary file
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".dcm") as tmp:
-            tmp.write(uploaded_file.read())
-            tmp_path = tmp.name
+uploaded_file = None
+if st.session_state.example_dicom_path == False:
+    uploaded_file = st.file_uploader("Upload a DICOM file (Max 5MB)", type=["dcm"])
 
-        # Show basic DICOM info or image preview
+
+
+# Experiment restarter
+if uploaded_file or st.session_state.example_dicom_path:
+    if st.button("🔄 Try another image"):
+
+        refresh_html = '''<meta http-equiv="refresh" content="0">'''
+        st.markdown(refresh_html, unsafe_allow_html=True)
+
+
+# Show Example images
+if not uploaded_file and not st.session_state.example_dicom_path:
+    show_example_dicoms()     
+
+# If file is uploaded or selected from example dataset
+if uploaded_file or st.session_state.example_dicom_path:
+    dicom_data = None
+    if uploaded_file: # only check file size if uploading. Avoid if using example DICOM
+        if uploaded_file.size > 5 * 1024 * 1024:
+            st.error("⚠️ File too large! Please upload a file smaller than 5MB.")
+        else:
+
+            # Save to temporary file
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".dcm") as tmp:
+                tmp.write(uploaded_file.read())
+                tmp_path = tmp.name
+
+            # Drive DICOM logic
+            try:
+                dicom_data = pydicom.dcmread(tmp_path)
+                img = Image.fromarray(dicom_data.pixel_array)
+                if img.mode != "RGB":
+                    img = img.convert("RGB")
+                st.image(img)
+
+                st.success("✅ File uploaded and read successfully.")
+                st.write("**Patient ID:**", dicom_data.get("PatientID", "N/A"))
+                st.write("**Modality:**", dicom_data.get("Modality", "N/A"))
+                st.write("**Study Date:**", dicom_data.get("StudyDate", "N/A"))
+
+            except Exception as e:
+                st.error(f"❌ Failed to process DICOM file: {e}")
+                os.remove(tmp_path)
+
+    if  st.session_state.example_dicom_path:
+        example_dicom_path = st.session_state["example_dicom_path"]
         try:
-            dicom_data = pydicom.dcmread(tmp_path)
-            st.success("✅ File uploaded and read successfully.")
+            dicom_data = pydicom.dcmread(example_dicom_path)
+            img = Image.fromarray(dicom_data.pixel_array)
+            if img.mode != "RGB":
+                img = img.convert("RGB")
+            st.image(img)
+
+            st.success("✅ Example file read successfully.")
             st.write("**Patient ID:**", dicom_data.get("PatientID", "N/A"))
             st.write("**Modality:**", dicom_data.get("Modality", "N/A"))
             st.write("**Study Date:**", dicom_data.get("StudyDate", "N/A"))
-
-            # # Optional: Convert pixel data to image
-            # if hasattr(dicom_data, "pixel_array"):
-            #     st.image(dicom_data.pixel_array, caption="DICOM Preview", use_column_width=True)
+            
         except Exception as e:
             st.error(f"❌ Failed to process DICOM file: {e}")
-            os.remove(tmp_path)
-
-        if 'xray_classified' not in st.session_state:
-            # Button to classify
-            if st.button("Run AI Classification"):
-                # Placeholder for backend response
-                with st.spinner("Processing with AI model..."):
-                    # Simulated classification result
-                    dct_classification_result = classify_xray(dicom_data.pixel_array)
-                    st.session_state['dct_classification_result'] = dct_classification_result
-                    show_classification_result()
-
-                    # Set session state to to drive logic
-                    st.session_state['xray_classified'] = True
-
-                # # Post-classification options
-                # st.markdown("---")
-                # st.subheader("Next Steps")
-
-                # col1, col2 = st.columns(2)
-
-                # with col1:
-                #     if st.button("📝 Generate Report"):
-                #         st.session_state['action'] = "generate_report"
-
-                # with col2:
-                #     if st.button("🔍 Show Top 3 Similar X-rays"):
-                #         st.session_state['action'] = "show_similar"
 
 
-        else:
-            # Show classification results
-            show_classification_result()
 
-            # Drive logic based on session state
-            if 'action' in st.session_state:
+    if 'xray_classified' not in st.session_state:
+        # Button to classify
+        if st.button("Run AI Classification"):
+            # Placeholder for backend response
+            with st.spinner("Processing with AI model..."):
+                # Simulated classification result
+                dct_classification_result = classify_xray(dicom_data.pixel_array)
+                st.session_state['dct_classification_result'] = dct_classification_result
+                show_classification_result()
 
-                # Visual explanation logic
-                if st.session_state['action'] == "explain_opinion":
-                        if modal.is_open():
-                            with modal.container():
-                                with st.spinner("Generating explanation using Grad-CAM..."):
-                                    # Generate Grad-CAM image
-                                    heatmap = run_gradcam_on_xray(dicom_data.pixel_array, label=st.session_state['explain_opinion_label'])
-                                    st.success("✅ Explanation generated")
-                                    st.image(heatmap, caption=f"Grad-CAM Heatmap - {st.session_state['explain_opinion_label']}", use_column_width=True)
+                # Set session state to to drive logic
+                st.session_state['xray_classified'] = True
 
-                # if st.session_state['action'] == "generate_report":
-                #     with st.spinner("Generating report using ML..."):
-                #         # Placeholder
-                #         st.success("✅ Report generated")
-                #         st.text_area("Radiology Report", "Findings indicate signs of pneumonia...", height=200)
 
-                # elif st.session_state['action'] == "show_similar":
-                #     with st.spinner("Fetching similar X-rays from Azure..."):
-                #         # Placeholder images or results
-                #         st.success("✅ Similar X-rays Found")
-                #         for i in range(1, 4):
-                #             st.image(f"https://via.placeholder.com/300x300.png?text=Similar+X-ray+{i}",
-                #                         caption=f"Top {i} Similar X-ray")
-                            
+    else:
+        # Show classification results
+        show_classification_result()
+
+        # Drive logic based on session state
+        if 'action' in st.session_state:
+
+            # Visual explanation logic
+            if st.session_state['action'] == "explain_opinion":
+                    if modal.is_open():
+                        with modal.container():
+                            with st.spinner("Generating explanation using Grad-CAM..."):
+                                # Generate Grad-CAM image
+                                heatmap = run_gradcam_on_xray(dicom_data.pixel_array, label=st.session_state['explain_opinion_label'])
+                                st.success("✅ Explanation generated")
+                                st.write("Grad-CAM Heatmap sets highlights on the part(s) of the image on which the model had the highest focus while making the classification dicision.")
+                                st.image(heatmap, caption=f"Grad-CAM Heatmap - {st.session_state['explain_opinion_label']}", use_column_width=True)
 
             # Find similiar X-rays logic
             if st.session_state['action'] == "show_similar_xrays":
                 if modal.is_open():
                     with modal.container():
-                        with st.spinner("Fetching similar X-rays from NIH Chest X-Ray Dataset..."):
+                        with st.spinner("Fetching similar X-rays from NIH Chest X-ray Dataset..."):
                             # Placeholder images or results
                             st.success("✅ Similar X-rays Found")
                             for i in range(1, 4):
                                 st.image(f"https://via.placeholder.com/300x300.png?text=Similar+X-ray+{i}",
-                                         caption=f"Top {i} Similar X-ray")
+                                        caption=f"Top {i} Similar X-ray")
                                 st.divider()
+
+    
