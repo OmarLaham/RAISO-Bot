@@ -42,8 +42,10 @@ jobs:
         with:
           name: python-app
           path: |
-            release.zip
+            ./
             !venv/
+            !**/__pycache__/
+            !**/*.pyc
 
   deploy:
     runs-on: ubuntu-latest
@@ -61,8 +63,8 @@ jobs:
         with:
           name: python-app
 
-      - name: Unzip artifact for deployment
-        run: unzip release.zip
+      # - name: Unzip artifact for deployment
+      #   run: unzip release.zip
 
       
       - name: Login to Azure
@@ -71,6 +73,9 @@ jobs:
           client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_1F846C502F8D4F6E9B1F6B4E232156A9 }}
           tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_1266F2833EAA4D928C24909A5C7BDAEC }}
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_B42BF7097F7142468485A25E4F35507C }}
+
+      - name: Debug downloaded artifact contents # Debugging step to check the contents of the downloaded artifact
+        run: ls -R
 
       - name: 'Deploy to Azure Web App'
         uses: azure/webapps-deploy@v3
