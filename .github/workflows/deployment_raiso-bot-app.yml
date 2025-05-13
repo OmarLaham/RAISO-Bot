@@ -69,8 +69,10 @@ jobs:
       - name: Remove unnecessary files before zipping
         run: rm -rf venv .git __pycache__ .github
 
-      - name: Zip app contents # Zip only the necessary files for deployment. Zipping is a must with Github Actions
-        run: zip -r app.zip . -x "*.git*" "*__pycache__*" "*.venv*" "*.DS_Store*"
+      - name: Clean and zip app contents # Clear previous deployment files and zip only the necessary files for deployment.
+        run: |
+          find . -type d -name __pycache__ -exec rm -r {} +
+          zip -r app.zip . -x "venv/*" ".git/*" "example_dicoms/*" "__pycache__/*"
 
       - name: Login to Azure
         uses: azure/login@v2
