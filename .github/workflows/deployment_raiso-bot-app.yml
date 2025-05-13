@@ -77,6 +77,9 @@ jobs:
       - name: Debug downloaded artifact contents # Debugging step to check the contents of the downloaded artifact
         run: ls -R
 
+      - name: Check root folder size
+        run: du -sh ./*
+
       - name: 'Deploy to Azure Web App'
         uses: azure/webapps-deploy@v3
         id: deploy-to-webapp
