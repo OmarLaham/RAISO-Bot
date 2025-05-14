@@ -8,6 +8,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 # Install OS-level dependencies (build tools for numpy, etc.)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
+    libgl1 \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
