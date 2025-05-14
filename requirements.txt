@@ -1,13 +1,15 @@
 # Python 3.13 required (provided by runtime on Azure)
+setuptools>=65
+wheel
 streamlit==1.29.0
 streamlit-modal==0.1.2
-pandas>=2.2.2
-numpy>=1.26.4
-requests>=2.31.0
+#pandas>=2.2.2
+numpy==1.24.4 # numpy version that has a prebuilt wheel for your platform
+#requests>=2.31.0
 pillow>=10.4.0 # streamlit 1.29.0 depends on pillow<11 and >=7.1.0
 pydicom>=3.0.1
 torch==2.7.0
 torchvision==0.22.0
 opencv-python==4.11.0.86
 timm==1.0.15 # PyTorch Image Models # https://pypi.org/project/timm/
-transformers==4.51.3
+#transformers==4.51.3
