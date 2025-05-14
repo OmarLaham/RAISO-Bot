@@ -3,7 +3,6 @@ import torch
 #import torch.nn.functional as F
 from torchvision import transforms#models
 from PIL import Image
-import matplotlib.pyplot as plt
 import cv2
 
 from xray_classifier import load_model, CLASS_NAMES
