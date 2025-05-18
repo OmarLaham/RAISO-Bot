@@ -10,41 +10,39 @@ import os
 from xray_classifier import classify_xray
 from grad_cam import run_gradcam_on_xray
 from xray_find_similar import find_similar_xrays
+from xray_dicom_deidentify import deidentify_dicom_on_premise, deidentify_dicom_on_azure
 
 def show_classification_result():
     st.success("✅ Classification Complete")
     # Print results
     n_diagnosis = 0
     dct_classification_result = st.session_state['dct_classification_result'] # get values from session_state
-    classification_threshold = 0 # 0 means no thresholding, default set to 0.55
+    classification_threshold = 0.55
     for label, prob in dct_classification_result.items():
-        if prob < classification_threshold: # Only show those with confidence >= classification_threshold
-                continue
-        
-        else:
+
+        if prob >= classification_threshold: # Only show those with confidence >= classification_threshold
             n_diagnosis += 1
-            col_class, col_confidence, col_operations = st.columns(3)
-            with col_class:
-                st.write(f"**{label}**")
-            with col_confidence:
-                st.write(f"Confidence: {prob:.2f}")
-            with col_operations:
-                if st.button("💡 Visual Explanaition", key=f"btn_explain_opinion_{label}"):
-                    st.session_state['action'] = "explain_opinion"
-                    st.session_state['explain_opinion_label'] = label
-                    modal.open()
 
-                if st.button("🔍 Show Similar X-Rays", key=f"btn_show_similar_xrays_{label}"):
-                    st.session_state['action'] = "show_similar_xrays"
-                    st.session_state['explain_opinion_label'] = label
-                    modal.open()
+        col_class, col_confidence, col_operations = st.columns(3)
+        with col_class:
+            st.write(f"**{label}**")
+        with col_confidence:
+            st.write(f"Confidence: {prob:.2f}")
+        with col_operations:
+            if st.button("💡 Visual Explanaition", key=f"btn_explain_opinion_{label}"):
+                st.session_state['action'] = "explain_opinion"
+                st.session_state['explain_opinion_label'] = label
+                modal.open()
 
-            st.divider()
+            if st.button("🔍 Show Similar X-Rays", key=f"btn_show_similar_xrays_{label}"):
+                st.session_state['action'] = "show_similar_xrays"
+                st.session_state['explain_opinion_label'] = label
+                modal.open()
 
-    if n_diagnosis > 0:
-        st.write(f"**{n_diagnosis} labels / possible diagnosis** captured by the AI model.")
-    else:
-        st.write("**No Findings** captured in this X-ray by the AI model.")
+        st.divider()
+
+    st.write(f"**{n_diagnosis} labels / possible diagnosis** with confidence >= {classification_threshold} captured by the AI model.")
+
 
 def show_example_dicoms():
     imgs = {
@@ -130,6 +128,17 @@ if uploaded_file or st.session_state.example_dicom_path:
             # Drive DICOM logic
             try:
                 dicom_data = pydicom.dcmread(tmp_path)
+
+                # Deidentify DICOM using in-app de-identification (for on-premises use)
+                with st.spinner("🔐 De-identifying DICOM before uploading for advanced de-identification on the cloud.."):
+                    st.success("✅ DICOM in-app de-identification complete")
+                    dicom_data = deidentify_dicom_on_premise(dicom_data)
+
+                # Deidentify DICOM using Azure DICOM De-identification service (advanced on cloud)
+                with st.spinner("🛡️ De-identifying DICOM using Azure DICOM De-identification service..."):
+                    st.success("✅ DICOM on Azure de-identification complete")
+                    dicom_data = deidentify_dicom_on_azure(dicom_data)
+
                 img = Image.fromarray(dicom_data.pixel_array)
                 if img.mode != "RGB":
                     img = img.convert("RGB")
@@ -199,22 +208,18 @@ if uploaded_file or st.session_state.example_dicom_path:
             if st.session_state['action'] == "show_similar_xrays":
                 if modal.is_open():
                     with modal.container():
-                        with st.spinner("Fetching similar X-rays from NIH Chest X-ray Dataset..."):
+                        with st.spinner("🔍 Fetching similar X-rays from NIH Chest X-ray Dataset..."):
                             # Get the image from the DICOM file as PiL Image
                             img = Image.fromarray(dicom_data.pixel_array)
                             if img.mode != "RGB":
                                 img = img.convert("RGB")
-                            st.success("✅ Image converted to search format..")
                             # Get filenames of similar X-rays using Azure Search AI
-                            st.success("🔍 Searching for similar images..")
                             filenames = find_similar_xrays(st.session_state['explain_opinion_label'], img)
                             st.success("✅ Top similar X-rays Found")
                             for i in range(len(filenames)):
                                 filename = filenames[i]
-                                #st.image(f"https://via.placeholder.com/300x300.png?text=Similar+X-ray+{i}",
-                                #        caption=f"Top {i} Similar X-ray")
-                                st.write(f"Top Similar X-ray {i+1}:")
-                                st.write(f"Filename: {filename}")
+                                st.image(f"https://raisobotstorage.blob.core.windows.net/xray-nih-images-container/images/{filename}",
+                                        caption=f"Top {i + 1} Similar X-ray | ID: {filename.split('.')[0]}")
                                 st.divider()
 
     

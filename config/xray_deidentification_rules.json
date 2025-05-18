@@ -1,0 +1,18 @@
+{
+    "remove": [
+      "PatientName",
+      "PatientID",
+      "PatientBirthDate",
+      "PatientSex",
+      "PatientAge",
+      "InstitutionName",
+      "ReferringPhysicianName",
+      "AccessionNumber"
+    ],
+    "replace": {
+      "StudyInstanceUID": "auto",
+      "SeriesInstanceUID": "auto",
+      "SOPInstanceUID": "auto"
+    }
+  }
+  
