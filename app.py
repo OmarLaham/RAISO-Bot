@@ -10,7 +10,7 @@ import os
 from xray_classifier import classify_xray
 from grad_cam import run_gradcam_on_xray
 from xray_find_similar import find_similar_xrays
-from xray_dicom_deidentify import deidentify_dicom_on_premise, deidentify_dicom_on_azure
+from xray_dicom_deidentify import de_id_dcm
 
 def show_classification_result():
     st.success("✅ Classification Complete")
@@ -127,24 +127,23 @@ if uploaded_file or st.session_state.example_dicom_path:
 
             # Drive DICOM logic
             try:
-                dicom_data = pydicom.dcmread(tmp_path)
+                #dicom_data = pydicom.dcmread(tmp_path)
+                
+                if 'deidentified_dicom' not in st.session_state:
+                    dicom_data = pydicom.dcmread(tmp_path)
+                    st.success("✅ File loaded successfully.")
+                    st.session_state['deidentified_dicom'] = de_id_dcm(dicom_data)
+                else :
+                    dicom_data = st.session_state['deidentified_dicom']
 
-                # Deidentify DICOM using in-app de-identification (for on-premises use)
-                with st.spinner("🔐 De-identifying DICOM before uploading for advanced de-identification on the cloud.."):
-                    st.success("✅ DICOM in-app de-identification complete")
-                    dicom_data = deidentify_dicom_on_premise(dicom_data)
+                
 
-                # Deidentify DICOM using Azure DICOM De-identification service (advanced on cloud)
-                with st.spinner("🛡️ De-identifying DICOM using Azure DICOM De-identification service..."):
-                    st.success("✅ DICOM on Azure de-identification complete")
-                    dicom_data = deidentify_dicom_on_azure(dicom_data)
-
+                # Display DICOM image with metadata after de-identification
                 img = Image.fromarray(dicom_data.pixel_array)
                 if img.mode != "RGB":
                     img = img.convert("RGB")
                 st.image(img)
-
-                st.success("✅ File uploaded and read successfully.")
+                
                 st.write("**Patient ID:**", dicom_data.get("PatientID", "N/A"))
                 st.write("**Modality:**", dicom_data.get("Modality", "N/A"))
                 st.write("**Study Date:**", dicom_data.get("StudyDate", "N/A"))
@@ -156,16 +155,25 @@ if uploaded_file or st.session_state.example_dicom_path:
     if  st.session_state.example_dicom_path:
         example_dicom_path = st.session_state["example_dicom_path"]
         try:
-            dicom_data = pydicom.dcmread(example_dicom_path)
+            #dicom_data = pydicom.dcmread(example_dicom_path)
+
+            if 'deidentified_dicom' not in st.session_state:
+                    dicom_data = pydicom.dcmread(example_dicom_path)
+                    st.success("✅ File loaded successfully.")
+                    st.write("💡 No De-identification will be applied on example DICOMs. To test De-identification feature, please upload your DICOM file (.dcm).")
+                    st.session_state['deidentified_dicom'] = dicom_data # No need to de-identify example DICOMs
+            else :
+                dicom_data = st.session_state['deidentified_dicom']
+
             img = Image.fromarray(dicom_data.pixel_array)
             if img.mode != "RGB":
                 img = img.convert("RGB")
             st.image(img)
 
             st.success("✅ Example file read successfully.")
-            st.write("**Patient ID:**", dicom_data.get("PatientID", "N/A"))
-            st.write("**Modality:**", dicom_data.get("Modality", "N/A"))
-            st.write("**Study Date:**", dicom_data.get("StudyDate", "N/A"))
+            st.write("**Patient ID:**", "N/A")
+            st.write("**Modality:**", "N/A")
+            st.write("**Study Date:**", "N/A")
             
         except Exception as e:
             st.error(f"❌ Failed to process DICOM file: {e}")

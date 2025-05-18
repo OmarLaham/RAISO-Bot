@@ -8,7 +8,7 @@ numpy==1.24.4 # numpy version that has a prebuilt wheel for your platform
 requests>=2.31.0
 pillow>=10.4.0 # streamlit 1.29.0 depends on pillow<11 and >=7.1.0
 pydicom>=3.0.1
-dicom-anonymizer==1.0.12 # https://pypi.org/project/dicom-anonymizer/
+#dicom-anonymizer==1.0.12 # https://pypi.org/project/dicom-anonymizer/
 torch==2.7.0
 torchvision==0.22.0
 opencv-python==4.11.0.86

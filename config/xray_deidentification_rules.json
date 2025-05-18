@@ -1,18 +1,28 @@
 {
-    "remove": [
-      "PatientName",
-      "PatientID",
-      "PatientBirthDate",
-      "PatientSex",
-      "PatientAge",
-      "InstitutionName",
-      "ReferringPhysicianName",
-      "AccessionNumber"
+  "remove": {
+    "tags": [
+      "(0010,0010)",
+      "(0010,0020)",
+      "(0010,0030)"
     ],
-    "replace": {
-      "StudyInstanceUID": "auto",
-      "SeriesInstanceUID": "auto",
-      "SOPInstanceUID": "auto"
+    "comments": [
+      "Patient's Name",
+      "Patient ID",
+      "Patient's Birth Date"
+    ]
+  },
+  "replace": {
+    "tags": {
+      "(0008,0018)": "auto",
+      "(0020,000D)": "auto",
+      "(0020,000E)": "auto",
+      "(0008,0050)": "ANON"
+    },
+    "comments": {
+      "(0008,0018)": "SOP Instance UID",
+      "(0020,000D)": "Study Instance UID",
+      "(0020,000E)": "Series Instance UID",
+      "(0008,0050)": "Accession Number"
     }
   }
-  
+}
