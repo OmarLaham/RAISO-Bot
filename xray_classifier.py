@@ -6,13 +6,6 @@ import numpy as np
 import timm
 
 
-# def classify_xray(pixel_array):
-#     return {
-#         "Pneumonia": 85,
-#         "Cardiomegaly": 75,
-#         "Mass": 51
-#     }
-
 # Define CheXpert or ChestX-ray14 labels (example)
 CLASS_NAMES = [
     'Atelectasis', 'Cardiomegaly', 'Consolidation', 'Edema', 'Effusion',
@@ -43,7 +36,7 @@ def load_model(num_classes=len(CLASS_NAMES), checkpoint_path=None):
     return model
 
 # Inference function
-def classify_xray(image: Image.Image, threshold=0.5):#, model: torch.nn.Module
+def classify_xray(image: Image.Image):#, model: torch.nn.Module
     # Convert DICOM pixel ndarray to PIL Image
     if isinstance(image, np.ndarray):
         image = Image.fromarray(image)

@@ -9,13 +9,14 @@ import tempfile
 import os
 from xray_classifier import classify_xray
 from grad_cam import run_gradcam_on_xray
+from xray_find_similar import find_similar_xrays
 
 def show_classification_result():
     st.success("✅ Classification Complete")
     # Print results
     n_diagnosis = 0
     dct_classification_result = st.session_state['dct_classification_result'] # get values from session_state
-    classification_threshold = 0.55
+    classification_threshold = 0 # 0 means no thresholding, default set to 0.55
     for label, prob in dct_classification_result.items():
         if prob < classification_threshold: # Only show those with confidence >= classification_threshold
                 continue
@@ -35,6 +36,7 @@ def show_classification_result():
 
                 if st.button("🔍 Show Similar X-Rays", key=f"btn_show_similar_xrays_{label}"):
                     st.session_state['action'] = "show_similar_xrays"
+                    st.session_state['explain_opinion_label'] = label
                     modal.open()
 
             st.divider()
@@ -198,11 +200,21 @@ if uploaded_file or st.session_state.example_dicom_path:
                 if modal.is_open():
                     with modal.container():
                         with st.spinner("Fetching similar X-rays from NIH Chest X-ray Dataset..."):
-                            # Placeholder images or results
-                            st.success("✅ Similar X-rays Found")
-                            for i in range(1, 4):
-                                st.image(f"https://via.placeholder.com/300x300.png?text=Similar+X-ray+{i}",
-                                        caption=f"Top {i} Similar X-ray")
+                            # Get the image from the DICOM file as PiL Image
+                            img = Image.fromarray(dicom_data.pixel_array)
+                            if img.mode != "RGB":
+                                img = img.convert("RGB")
+                            st.success("✅ Image converted to search format..")
+                            # Get filenames of similar X-rays using Azure Search AI
+                            st.success("🔍 Searching for similar images..")
+                            filenames = find_similar_xrays(st.session_state['explain_opinion_label'], img)
+                            st.success("✅ Top similar X-rays Found")
+                            for i in range(len(filenames)):
+                                filename = filenames[i]
+                                #st.image(f"https://via.placeholder.com/300x300.png?text=Similar+X-ray+{i}",
+                                #        caption=f"Top {i} Similar X-ray")
+                                st.write(f"Top Similar X-ray {i+1}:")
+                                st.write(f"Filename: {filename}")
                                 st.divider()
 
     

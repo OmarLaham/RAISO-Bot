@@ -18,9 +18,8 @@ transform = transforms.Compose([
     )
 ])
 
-def embed_xray(image_path):
-    image = Image.open(image_path).convert('RGB')
-    tensor = transform(image).unsqueeze(0)  # Add batch dimension
+def embed_xray(img: Image):
+    tensor = transform(img).unsqueeze(0)  # Add batch dimension
     with torch.no_grad():
         embedding = vision_model(tensor).squeeze().numpy()
-    return embedding
+    return embedding.tolist()  # Convert NumPy array to list
