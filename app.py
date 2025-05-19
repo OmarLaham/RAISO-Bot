@@ -103,10 +103,6 @@ def show_apim_form():
 
                 st.success("Key saved. Will now call the API and check if it's valid.")
                 st.experimental_rerun()
-                
-                
-
-                
 
     else:
         if st.session_state.sub_key != "":
@@ -138,10 +134,6 @@ def show_apim_form():
                     if st.button("🔄 Try Again"):
                         refresh_html = '''<meta http-equiv="refresh" content="0">'''
                         st.markdown(refresh_html, unsafe_allow_html=True)
-
-
-
-
 
 
 # Use Azure API Management to limit usage. 
