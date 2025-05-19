@@ -97,6 +97,7 @@ if 'example_dicom_path' not in st.session_state:
 uploaded_file = None
 if st.session_state.example_dicom_path == False:
     uploaded_file = st.file_uploader("Upload a DICOM file (Max 5MB)", type=["dcm"])
+    st.write("🔒 Uploaded file will be de-identified before passing to ML model.")
 
 
 
@@ -127,7 +128,6 @@ if uploaded_file or st.session_state.example_dicom_path:
 
             # Drive DICOM logic
             try:
-                #dicom_data = pydicom.dcmread(tmp_path)
                 
                 if 'deidentified_dicom' not in st.session_state:
                     dicom_data = pydicom.dcmread(tmp_path)

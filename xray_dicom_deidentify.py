@@ -5,13 +5,10 @@ from datetime import datetime
 import requests
 import streamlit as st
 import pydicom
+#from deid.dicom import DicomCleaner
 from pydicom.uid import generate_uid
 from pydicom.tag import Tag
 from pydicom.dataelem import DataElement
-from pydicom.datadict import dictionary_VR
-#from dicom_anonymizer import anonymize_dataset
-from azure.identity import ClientSecretCredential
-#from azure.healthcareapis import DicomServiceClient  # hypothetical, replace with actual client if exists
 
 
 def load_rules(rules_path):
@@ -76,67 +73,17 @@ def de_id_dcm_on_premise(dicom_data):
 
     return deidentified_ds
 
-# Get Azure access token and cache it
-@st.cache_resource
-def get_token():
-        
-        # Authenticate securely
-        credential = ClientSecretCredential(  # Azure AD authentication is required for DICOM de-identification service for compliance and GDPR, ...
-            tenant_id = st.secrets["AZURE_TENANT_ID"],
-            client_id = st.secrets["AZURE_CLIENT_ID"],
-            client_secret = st.secrets["AZURE_CLIENT_SECRET"]
-        )
-
-        token = credential.get_token("https://dicom.healthcareapis.azure.com/.default")
-        return token.token
-        
-
-def de_id_dcm_on_azure(dicom_data):
-
-    # Get Azure access token
-    access_token = get_token()
-    # Check if token is None
-    if access_token is None:
-        raise Exception("Failed to obtain Azure access token.")
-
-    headers = {
-        "Authorization": f"Bearer {access_token}",
-        "Content-Type": "application/octet-stream",  # Sending binary DICOM
-        "Accept": "application/dicom"
-    }
-    
-
-    # Convert pydicom dataset to binary
-    buffer = BytesIO()
-    dicom_data.save_as(buffer)
-    buffer.seek(0)
-    
-    # Call de-ID API (inline, real-time)
-    azure_de_id_endpoint = st.secrets['AZURE_DEID_ENDPOINT']
-    url = f"{azure_de_id_endpoint}/v1/de-identify"
-    response = requests.post(url, headers=headers, data=buffer.getvalue())
-
-    if response.status_code != 200:
-        raise Exception(f"De-identification failed: {response.status_code} - {response.text}")
-    
-
-    # Convert response DICOM to pydicom dataset
-    de_id_dcm = pydicom.dcmread(BytesIO(response.content))
-    return de_id_dcm
-
 
 def de_id_dcm(dicom_data):
 
     # Deidentify DICOM using on-premise de-identification (for on-premises use)
-    with st.spinner("🔐 De-identifying DICOM before uploading for advanced de-identification on the cloud.."):
+    with st.spinner("🔐 De-identifying DICOM metadata before uploading for advanced de-identification on the cloud.."):
         dicom_data = de_id_dcm_on_premise(dicom_data)
-        st.success("✅ DICOM on-premise de-identification complete.")
-        
-    st.write("**De-identification on Azure**")
+        st.success("✅ On-premise metadata de-identification complete.")
 
-    # Deidentify DICOM using Azure DICOM De-identification service (advanced on cloud)
-    with st.spinner("🛡️ De-identifying DICOM using Azure DICOM De-identification service..."):
-        dicom_data = de_id_dcm_on_azure(dicom_data)
-        st.success("✅ DICOM on Azure de-identification complete.")
+    # # Deidentify DICOM using Azure DICOM De-identification service (advanced on cloud)
+    # with st.spinner("🛡️ De-identifying DICOM using Azure DICOM De-identification service..."):
+    #     dicom_data = de_id_dcm_on_azure(dicom_data)
+    #     st.success("✅ Azure de-identification complete.")
         
     return dicom_data
