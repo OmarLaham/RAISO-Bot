@@ -73,6 +73,7 @@ def show_example_dicoms():
 
             st.divider()
 
+
 # Set page config
 st.set_page_config(page_title="Radiology AI Assistant", layout="centered")
 
@@ -193,21 +194,22 @@ else: # Drive logic to show the main app
                     if 'deidentified_dicom' not in st.session_state:
                         dicom_data = pydicom.dcmread(tmp_path)
                         st.success("✅ File loaded successfully.")
-                        st.session_state['deidentified_dicom'] = de_id_dcm(dicom_data)
-                    else :
+                        dicom_data = de_id_dcm(dicom_data) # De-identify DICOM
+                        if not dicom_data is None:
+                            st.session_state['deidentified_dicom'] = de_id_dcm(dicom_data)
+
+                            # Display DICOM image with metadata after de-identification
+                            img = Image.fromarray(dicom_data.pixel_array)
+                            if img.mode != "RGB":
+                                img = img.convert("RGB")
+                            st.image(img)
+                            
+                            st.write("**Patient ID:**", dicom_data.get("PatientID", "N/A"))
+                            st.write("**Modality:**", dicom_data.get("Modality", "N/A"))
+                            st.write("**Study Date:**", dicom_data.get("StudyDate", "N/A"))
+
+                    else : # If DICOM is uploaded, de_identified and processed
                         dicom_data = st.session_state['deidentified_dicom']
-
-                    
-
-                    # Display DICOM image with metadata after de-identification
-                    img = Image.fromarray(dicom_data.pixel_array)
-                    if img.mode != "RGB":
-                        img = img.convert("RGB")
-                    st.image(img)
-                    
-                    st.write("**Patient ID:**", dicom_data.get("PatientID", "N/A"))
-                    st.write("**Modality:**", dicom_data.get("Modality", "N/A"))
-                    st.write("**Study Date:**", dicom_data.get("StudyDate", "N/A"))
 
                 except Exception as e:
                     st.error(f"❌ Failed to process DICOM file: {e}")
@@ -240,55 +242,55 @@ else: # Drive logic to show the main app
                 st.error(f"❌ Failed to process DICOM file: {e}")
 
 
+        if 'deidentified_dicom' in st.session_state:
+            if 'xray_classified' not in st.session_state:
+                # Button to classify
+                if st.button("Run AI Classification"):
+                    # Placeholder for backend response
+                    with st.spinner("Processing with AI model..."):
+                        # Simulated classification result
+                        dct_classification_result = classify_xray(dicom_data.pixel_array)
+                        st.session_state['dct_classification_result'] = dct_classification_result
+                        show_classification_result()
 
-        if 'xray_classified' not in st.session_state:
-            # Button to classify
-            if st.button("Run AI Classification"):
-                # Placeholder for backend response
-                with st.spinner("Processing with AI model..."):
-                    # Simulated classification result
-                    dct_classification_result = classify_xray(dicom_data.pixel_array)
-                    st.session_state['dct_classification_result'] = dct_classification_result
-                    show_classification_result()
-
-                    # Set session state to to drive logic
-                    st.session_state['xray_classified'] = True
+                        # Set session state to to drive logic
+                        st.session_state['xray_classified'] = True
 
 
-        else:
-            # Show classification results
-            show_classification_result()
+            else:
+                # Show classification results
+                show_classification_result()
 
-            # Drive logic based on session state
-            if 'action' in st.session_state:
+                # Drive logic based on session state
+                if 'action' in st.session_state:
 
-                # Visual explanation logic
-                if st.session_state['action'] == "explain_opinion":
+                    # Visual explanation logic
+                    if st.session_state['action'] == "explain_opinion":
+                            if modal.is_open():
+                                with modal.container():
+                                    with st.spinner("Generating explanation using Grad-CAM..."):
+                                        # Generate Grad-CAM image
+                                        heatmap = run_gradcam_on_xray(dicom_data.pixel_array, label=st.session_state['explain_opinion_label'])
+                                        st.success("✅ Explanation generated")
+                                        st.write("Grad-CAM Heatmap sets highlights on the part(s) of the image on which the model had the highest focus while making the classification dicision.")
+                                        st.image(heatmap, caption=f"Grad-CAM Heatmap - {st.session_state['explain_opinion_label']}", use_column_width=True)
+
+                    # Find similiar X-rays logic
+                    if st.session_state['action'] == "show_similar_xrays":
                         if modal.is_open():
                             with modal.container():
-                                with st.spinner("Generating explanation using Grad-CAM..."):
-                                    # Generate Grad-CAM image
-                                    heatmap = run_gradcam_on_xray(dicom_data.pixel_array, label=st.session_state['explain_opinion_label'])
-                                    st.success("✅ Explanation generated")
-                                    st.write("Grad-CAM Heatmap sets highlights on the part(s) of the image on which the model had the highest focus while making the classification dicision.")
-                                    st.image(heatmap, caption=f"Grad-CAM Heatmap - {st.session_state['explain_opinion_label']}", use_column_width=True)
-
-                # Find similiar X-rays logic
-                if st.session_state['action'] == "show_similar_xrays":
-                    if modal.is_open():
-                        with modal.container():
-                            with st.spinner("🔍 Fetching similar X-rays from NIH Chest X-ray Dataset..."):
-                                # Get the image from the DICOM file as PiL Image
-                                img = Image.fromarray(dicom_data.pixel_array)
-                                if img.mode != "RGB":
-                                    img = img.convert("RGB")
-                                # Get filenames of similar X-rays using Azure Search AI
-                                filenames = find_similar_xrays(st.session_state['explain_opinion_label'], img)
-                                st.success("✅ Top similar X-rays Found")
-                                for i in range(len(filenames)):
-                                    filename = filenames[i]
-                                    st.image(f"https://raisobotstorage.blob.core.windows.net/xray-nih-images-container/images/{filename}",
-                                            caption=f"Top {i + 1} Similar X-ray | ID: {filename.split('.')[0]}")
-                                    st.divider()
+                                with st.spinner("🔍 Fetching similar X-rays from NIH Chest X-ray Dataset..."):
+                                    # Get the image from the DICOM file as PiL Image
+                                    img = Image.fromarray(dicom_data.pixel_array)
+                                    if img.mode != "RGB":
+                                        img = img.convert("RGB")
+                                    # Get filenames of similar X-rays using Azure Search AI
+                                    filenames = find_similar_xrays(st.session_state['explain_opinion_label'], img)
+                                    st.success("✅ Top similar X-rays Found")
+                                    for i in range(len(filenames)):
+                                        filename = filenames[i]
+                                        st.image(f"https://raisobotstorage.blob.core.windows.net/xray-nih-images-container/images/{filename}",
+                                                caption=f"Top {i + 1} Similar X-ray | ID: {filename.split('.')[0]}")
+                                        st.divider()
 
     

@@ -1,11 +1,10 @@
 import torch
 from PIL import Image
 from torchvision import transforms
-from transformers import AutoTokenizer
-from timm import create_model
+import timm
 
 # Load vision encoder (ViT-base used in MedCLIP)
-vision_model = create_model('vit_base_patch16_224', pretrained=True, num_classes=0)
+vision_model = timm.create_model('vit_base_patch16_224', pretrained=True, num_classes=0)
 vision_model.eval()
 
 # Preprocessing for MedCLIP (224x224, normalization)

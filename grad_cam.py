@@ -1,6 +1,5 @@
 import numpy as np
 import torch
-#import torch.nn.functional as F
 from torchvision import transforms#models
 from PIL import Image
 import cv2
@@ -41,8 +40,6 @@ class GradCAM:
 
     def generate(self, input_tensor, class_idx):
         output = self.model(input_tensor)
-        # if class_idx is None:
-        #     class_idx = torch.argmax(output)
 
         self.model.zero_grad()
         output[:, class_idx].backward()
@@ -84,15 +81,3 @@ def run_gradcam_on_xray(ndarray_img, label):
 
     result_img = overlay_heatmap_on_image(heatmap, ndarray_img)
     return result_img
-    # plt.imshow(result_img)
-    # plt.axis('off')
-    # plt.title(f"Predicted class: {class_idx}")
-    # plt.show()
-
-# ===== Example call =====
-# Assuming you have a DICOM image already read as ndarray:
-# import pydicom
-# ds = pydicom.dcmread("some_xray.dcm")
-# xray_ndarray = ds.pixel_array
-
-# run_gradcam_on_xray(xray_ndarray)

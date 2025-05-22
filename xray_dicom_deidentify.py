@@ -4,8 +4,6 @@ import json
 from datetime import datetime
 import requests
 import streamlit as st
-import pydicom
-#from deid.dicom import DicomCleaner
 from pydicom.uid import generate_uid
 from pydicom.tag import Tag
 from pydicom.dataelem import DataElement
@@ -58,9 +56,6 @@ def anonymize_dataset(ds, rules):
         except Exception as e:
             print(f"Could not replace tag {tag}: {e}")
 
-    ## Force SOP Class UID to X-ray (CR)
-    #ds[(0x0008, 0x0016)] = "1.2.840.10008.5.1.4.1.1.1" # SOP Class UID = Computed Radiography Image Storage
-
     return ds
 
 def de_id_dcm_on_premise(dicom_data):
@@ -73,17 +68,32 @@ def de_id_dcm_on_premise(dicom_data):
 
     return deidentified_ds
 
-
 def de_id_dcm(dicom_data):
 
     # Deidentify DICOM using on-premise de-identification (for on-premises use)
     with st.spinner("🔐 De-identifying DICOM metadata before uploading for advanced de-identification on the cloud.."):
-        dicom_data = de_id_dcm_on_premise(dicom_data)
-        st.success("✅ On-premise metadata de-identification complete.")
+        try:
+            dicom_data = de_id_dcm_on_premise(dicom_data)
+            st.success("✅ On-premise metadata de-identification complete.")
+        except Exception as e:
+            # Debugging
+            print(f"Exception: {e}")
 
+            st.error(f"❌ On-premise de-identification failed: {e}")
+            return None
+
+    # For those who want to use Azure DICOM De-identification service and maybe contribute to the repo ;)
     # # Deidentify DICOM using Azure DICOM De-identification service (advanced on cloud)
     # with st.spinner("🛡️ De-identifying DICOM using Azure DICOM De-identification service..."):
-    #     dicom_data = de_id_dcm_on_azure(dicom_data)
-    #     st.success("✅ Azure de-identification complete.")
+    #     try:
+    #         dicom_data = de_id_dcm_on_azure(dicom_data)
+    #         st.success("✅ Azure de-identification complete.")
+    #     except Exception as e:
+            
+    #         # Debugging
+    #         print(f"Exception: {e}")
+
+    #         st.error(f"❌ Azure de-identification failed: {e}")
+    #         return None
         
     return dicom_data
