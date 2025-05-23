@@ -1,17 +1,17 @@
-# RAISO-Bot: Radiology AI Second Opinion Bot
+# RAISO Bot – Radiology AI Second Opinion App
 
-TODO: Fill description
+RAISO (Radiology AI Second Opinion) is a minimal yet functional DICOM viewer powered by AI, designed to provide clinicians with a quick second opinion using open-source deep learning models. Built API-first and cloud-ready for healthcare use cases.
 
-![Sample Output](sample.png)
+🛰️ **Live App**: [RAISO on Azure](https://raiso-container-app.ambitiousmoss-b2a629ad.westus.azurecontainerapps.io/)  
+📖 **Behind the Scenes**: [Read the full story](https://shorthaired-cobweb-95c.notion.site/RAISO-Radiology-AI-Second-Opinion-App-on-Top-of-Azure-1f831893bffc80a385ddc16c3e76fd4c)  
+📬 **Request a Key**: contact@captaincto.com
 
-## Prerequisites
+---
 
-Before you can run this chatbot, make sure you have installed the requirements from requirements.txt
-
-You can do this using `pip`:
+## 🚀 Running Locally (Docker, Port 8000)
 
 ```bash
-pip install -r requirements.txt
-```
-
-
+git clone https://github.com/OmarLaham/RAISO-Bot.git
+cd RAISO-Bot
+docker build -t raiso .
+docker run -p 8000:8000 raiso
