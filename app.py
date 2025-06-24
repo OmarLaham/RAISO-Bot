@@ -92,7 +92,8 @@ def show_apim_form():
 
         # Step 1: Form to enter key
         with st.form("key_form"):
-            key_input = st.text_input("Enter your API access key", type="password")
+            apim_default_key = os.environ.get("APIM_User_1_KEY", st.secrets["APIM_User_1_KEY"]) # Value source depends on Production (Env Var) vs DEV (st.secrets)
+            key_input = st.text_input("Enter your API access key", type="password", value=apim_default_key)
             submitted = st.form_submit_button("Use Key")
 
             if submitted:
@@ -103,38 +104,43 @@ def show_apim_form():
                 print("> key input:", key_input)
 
                 st.success("Key saved. Will now call the API and check if it's valid.")
-                st.experimental_rerun()
+                st.rerun()
 
     else:
         if st.session_state.sub_key != "":
 
             if 'apim_key_valid' not in st.session_state:
                 # Check if key is valid
-                print("> Validating key:", st.session_state.sub_key)
-                headers = {
-                    "Ocp-Apim-Subscription-Key": st.session_state.sub_key
-                }
-                
-                response = requests.get(apim_url, headers=headers)
 
-                if response.status_code == 200: # Valid subscription key
-                    st.session_state.apim_key_valid = True
-                    st.session_state.apim_header_added = True
-                    st.success("🎉 Valid API key!")
-                    st.experimental_rerun()
+                with st.spinner("Validating API Key..."):
+
+                    print("> Validating key:", st.session_state.sub_key)
+                    headers = {
+                        "Ocp-Apim-Subscription-Key": st.session_state.sub_key
+                    }
                     
-                else: # Invalid subscription key
+                    response = requests.get(apim_url, headers=headers)
 
-                    # Print for debugging
-                    print("APIM validation request failed with status code:", response.status_code)
-                    print(response.text)
-                    # Reset the key
-                    del st.session_state["sub_key"]
+                    print("APIM key validation response:", response)
 
-                    st.error("❌ Invalid API key. Please try again.")                
-                    if st.button("🔄 Try Again"):
-                        refresh_html = '''<meta http-equiv="refresh" content="0">'''
-                        st.markdown(refresh_html, unsafe_allow_html=True)
+                    if response.status_code == 200: # Valid subscription key
+                        st.session_state.apim_key_valid = True
+                        st.session_state.apim_header_added = True
+                        st.success("🎉 Valid API key!")
+                        st.experimental_rerun()
+                        
+                    else: # Invalid subscription key
+
+                        # Print for debugging
+                        print("APIM validation request failed with status code:", response.status_code)
+                        print(response.text)
+                        # Reset the key
+                        del st.session_state["sub_key"]
+
+                        st.error("❌ Invalid API key. Please try again.")                
+                        if st.button("🔄 Try Again"):
+                            refresh_html = '''<meta http-equiv="refresh" content="0">'''
+                            st.markdown(refresh_html, unsafe_allow_html=True)
 
 
 # Use Azure API Management to limit usage. 

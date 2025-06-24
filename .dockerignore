@@ -1,0 +1,6 @@
+# .dockerignore
+
+# DO NOT add .streamlit/secrets.toml to this file. ONLY add it to .gitignore
+
+.vscode/
+__pycache__/
